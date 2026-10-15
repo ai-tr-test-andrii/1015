@@ -1,3 +1,5 @@
+import ast
+import operator
 import os
 import re
 import pickle
@@ -100,10 +102,46 @@ def whois():
 #  7. Code Injection — eval() (CWE-94) [CRITICAL]
 # ============================================================
 
+# Safe arithmetic evaluator using ast — only numeric literals and
+# the four basic operators are permitted; no builtins, no imports,
+# no attribute access, no function calls.
+_SAFE_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+
+def _safe_eval(node):
+    """Recursively evaluate an AST node using only safe numeric operations."""
+    if isinstance(node, ast.Expression):
+        return _safe_eval(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _SAFE_OPS:
+        return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _SAFE_OPS:
+        return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
+    raise ValueError("Unsupported expression")
+
+
 @app.route("/calc")
 def calculator():
     expr = request.args.get("expr", "0")
-    result = eval(expr)
+    try:
+        # ast.parse with mode="eval" produces an ast.Expression node.
+        # Only numeric constants and the arithmetic operators listed in
+        # _SAFE_OPS are permitted — all other constructs raise ValueError.
+        tree = ast.parse(expr, mode="eval")
+        result = _safe_eval(tree)
+    except Exception:
+        return Response("Invalid expression", status=400, mimetype="text/plain")
     return Response(str(result), mimetype="text/plain")
 
 
