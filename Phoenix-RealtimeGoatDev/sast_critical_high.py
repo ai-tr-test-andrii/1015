@@ -92,7 +92,11 @@ def dns_lookup():
 @app.route("/whois")
 def whois():
     target = request.args.get("target", "")
-    result = os.popen("whois " + target).read()
+    # Pass target as a separate list element with shell=False to prevent command injection.
+    # subprocess.run with shell=False treats each list element as a distinct argument,
+    # so shell metacharacters in `target` are never interpreted by a shell.
+    proc = subprocess.run(["whois", target], shell=False, capture_output=True, text=True)
+    result = proc.stdout
     return Response(result, mimetype="text/plain")
 
 
