@@ -248,7 +248,7 @@ def register():
 @app.route("/log-action")
 def log_action():
     action = request.args.get("action", "")
-    logger.info("User performed action: " + action)
+    logger.info("User performed action: %s", action)
     return Response("Logged", mimetype="text/plain")
 
 
