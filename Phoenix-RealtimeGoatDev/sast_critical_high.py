@@ -1,3 +1,4 @@
+import ast
 import os
 import re
 import pickle
@@ -103,7 +104,13 @@ def whois():
 @app.route("/calc")
 def calculator():
     expr = request.args.get("expr", "0")
-    result = eval(expr)
+    # Use ast.literal_eval instead of eval to safely parse only Python literals
+    # (numbers, strings, tuples, lists, dicts, booleans, None).
+    # This prevents arbitrary code execution while still supporting numeric inputs.
+    try:
+        result = ast.literal_eval(expr)
+    except (ValueError, TypeError):
+        return Response("Invalid expression", status=400, mimetype="text/plain")
     return Response(str(result), mimetype="text/plain")
 
 
