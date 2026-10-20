@@ -71,7 +71,10 @@ def login():
 @app.route("/ping")
 def ping():
     host = request.args.get("host", "")
-    output = subprocess.check_output("ping -c 1 " + host, shell=True)
+    # Pass the command as a list with shell=False to prevent command injection.
+    # The user-supplied host is passed as a discrete argument, never interpolated
+    # into a shell string, so shell metacharacters cannot be interpreted.
+    output = subprocess.check_output(["ping", "-c", "1", host], shell=False)
     return Response(output, mimetype="text/plain")
 
 
